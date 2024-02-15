@@ -28,6 +28,7 @@ def call(Map configMap) {
                         echo "application version: $packageVersion"
                     }
                 }
+            }    
             stage('install dependencies') {
                 steps {
                   sh """
@@ -115,6 +116,6 @@ def call(Map configMap) {
                 echo 'I will say Hello when pipeline is success'
             }
         }
-        }
+        
     }
 }
