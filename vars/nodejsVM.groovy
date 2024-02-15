@@ -1,4 +1,4 @@
-def call(Map configMap){
+def call(Map configMap) {
     pipeline {
         agent {
             node {
@@ -15,15 +15,8 @@ def call(Map configMap){
             disableConcurrentBuilds()
         }
         parameters {
-            // string(name: 'PERSON', defaultValue: 'Mr Jenkins', description: 'Who should I say hello to?')
-
-            // text(name: 'BIOGRAPHY', defaultValue: '', description: 'Enter some information about the person')
 
             booleanParam(name: 'deploy', defaultValue: false, description: 'Toggle this value')
-
-            // choice(name: 'CHOICE', choices: ['One', 'Two', 'Three'], description: 'Pick something')
-
-            // password(name: 'PASSWORD', defaultValue: 'SECRET', description: 'Enter a password')
         }
         // build
         stages {
@@ -35,8 +28,80 @@ def call(Map configMap){
                         echo "application version: $packageVersion"
                     }
                 }
+            stage('install dependencies') {
+                steps {
+                  sh """
+                   npm install
+                  """
+                }
             }
+            stage('unit test') {
+                steps {
+                  sh """
+                   echo "unit test cases will run here"
+                  """
+                }
+            } 
+            stage('sonarscan') {
+                steps {
+                  sh """
+                   echo "this is the command for sonar scanning:[sonar-scanner]"
+                   """
+                }
+            }
+    
+            stage('build') {
+                steps {
+                  sh """
+                   ls -la
+                   zip  -q -r catalogue.zip ./* -x ".git" -x "*.zip"
+                   ls -ltr
+                  """
+                }
+            }
+        
+            stage('publish Artifacts') {
+                steps {
+                  nexusArtifactUploader(
+                    nexusVersion: 'nexus3',
+                    protocol: 'http',
+                    nexusUrl: pipelineGlobals.nexusURL(),
+                    groupId: 'com.roboshop',
+                    version: "${packageVersion}",
+                    repository: "${configMap.component}",
+                    credentialsId: 'nexus-auth',
+                    artifacts: [
+                         [artifactId: "${configMap.component}",
+                         classifier: '',
+                         file: "${configMap.component}.zip",
+                         type: 'zip']
+                    ]
+                  )  
+     
+                }
+            }
+            stage('Deploy') {
+              when {
+                expression{
+                    params.deploy == 'true'
+                }
+              }
+              steps {
+                script {
+                    def params = [
+                        string(name: 'version', value: "${packageVersion}"),
+                        string(name: 'environment', value: "dev")
+                    ]
+
+                        build job: "../${configMap.component}-deploy", wait: true ,parameters: params
+
+                }
+              }
+            }
+        
         }
+            
+    
         // post build
         post { 
             always { 
